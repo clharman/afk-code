@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "bun run src/cli/index.ts",
     "daemon": "bun run src/daemon/index.ts",
+    "relay": "bun run src/relay/index.ts",
     "test": "bun test"
   },
   "dependencies": {},
