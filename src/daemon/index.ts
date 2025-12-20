@@ -277,11 +277,19 @@ function handleRelayMessage(message: any): void {
       const session = sessions.get(message.sessionId);
       if (session) {
         console.log(`[Daemon] Forwarding input to session ${message.sessionId}`);
-        // Send to the PTY process - use \r (Enter key) to submit
+        // Send text first, then Enter key separately after a brief delay
         session.socket.write(JSON.stringify({
           type: 'input',
-          text: message.text + '\r',
+          text: message.text,
         }) + '\n');
+
+        // Small delay then send Enter to submit
+        setTimeout(() => {
+          session.socket.write(JSON.stringify({
+            type: 'input',
+            text: '\r',
+          }) + '\n');
+        }, 50);
       }
       break;
     }
