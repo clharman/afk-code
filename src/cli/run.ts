@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { spawn } from 'bun';
 import { spawn as spawnPty } from '@zenyr/bun-pty';
 import type { Socket } from 'bun';
 import { homedir } from 'os';
@@ -70,15 +71,38 @@ async function connectToDaemon(
   }
 }
 
+// Check if command includes resume flags that are incompatible with bun-pty
+function needsScriptFallback(command: string[]): boolean {
+  return command.some(arg => arg === '-c' || arg === '--continue' || arg === '-r' || arg === '--resume');
+}
+
 export async function run(command: string[]): Promise<void> {
   const sessionId = randomUUID().slice(0, 8);
   const cwd = process.cwd();
   const projectDir = getClaudeProjectDir(cwd);
 
+  // Use script fallback for resume commands (bun-pty has compatibility issues)
+  if (needsScriptFallback(command)) {
+    console.log('[Snowfort] Using compatibility mode for resume (remote input disabled)');
+
+    const daemon = await connectToDaemon(sessionId, projectDir, cwd, command, () => {});
+
+    // macOS syntax: script -q /dev/null command args
+    const proc = spawn(['script', '-q', '/dev/null', ...command], {
+      stdio: ['inherit', 'inherit', 'inherit'],
+      cwd,
+      env: process.env,
+    });
+
+    await proc.exited;
+    daemon?.close();
+    return;
+  }
+
+  // Normal mode: use bun-pty for full terminal features + remote input
   const cols = process.stdout.columns || 80;
   const rows = process.stdout.rows || 24;
 
-  // Create PTY with the command - preserves all terminal features
   const pty = spawnPty(command[0], command.slice(1), {
     name: process.env.TERM || 'xterm-256color',
     cols,
@@ -87,41 +111,34 @@ export async function run(command: string[]): Promise<void> {
     env: process.env as Record<string, string>,
   });
 
-  // Connect to daemon for remote sync
   const daemon = await connectToDaemon(
     sessionId,
     projectDir,
     cwd,
     command,
     (text) => {
-      // Remote input from mobile - write to PTY
       pty.write(text);
     }
   );
 
-  // Put stdin in raw mode for proper terminal handling
   if (process.stdin.isTTY) {
     process.stdin.setRawMode(true);
   }
 
-  // Forward PTY output to stdout (colors preserved)
   pty.onData((data: string) => {
     process.stdout.write(data);
   });
 
-  // Forward stdin to PTY
   process.stdin.on('data', (data: Buffer) => {
     pty.write(data.toString());
   });
 
-  // Handle terminal resize
   process.stdout.on('resize', () => {
     pty.resize(process.stdout.columns || 80, process.stdout.rows || 24);
   });
 
-  // Wait for PTY to exit
   await new Promise<void>((resolve) => {
-    pty.onExit(({ exitCode, signal }) => {
+    pty.onExit(() => {
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(false);
       }
