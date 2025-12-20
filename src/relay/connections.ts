@@ -138,7 +138,7 @@ class ConnectionRegistry {
     }
 
     ws.data.subscribedSessions.add(sessionId);
-    console.log(`[Connections] Mobile subscribed to session ${sessionId.slice(0, 8)}`);
+    console.log(`[Connections] Mobile subscribed to session ${sessionId.slice(0, 8)}, now has ${ws.data.subscribedSessions.size} subscriptions`);
 
     // Send current session status
     ws.send(JSON.stringify({
@@ -216,14 +216,20 @@ class ConnectionRegistry {
   // Send message to mobile clients subscribed to a specific session
   notifySubscribedClients(userId: string, sessionId: string, message: object): void {
     const connections = this.userConnections.get(userId);
-    if (!connections) return;
+    if (!connections) {
+      console.log(`[Connections] No connections for user ${userId.slice(0, 8)}`);
+      return;
+    }
 
     const data = JSON.stringify(message);
+    let sent = 0;
     for (const ws of connections) {
       if (ws.data.type === 'mobile' && ws.data.subscribedSessions.has(sessionId)) {
         ws.send(data);
+        sent++;
       }
     }
+    console.log(`[Connections] Forwarded to ${sent} subscribed clients (session ${sessionId.slice(0, 8)})`);
   }
 
   // Get stats

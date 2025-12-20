@@ -107,6 +107,7 @@ async function handleDaemonMessage(
 
     case 'session_message': {
       if (!ws.data.authenticated) return;
+      console.log(`[Relay] Received message from daemon: session=${message.sessionId} role=${message.role}`);
       // Store message in history
       connectionRegistry.addMessage(message.sessionId, message.role, message.content);
       // Forward conversation message to subscribed mobile clients
