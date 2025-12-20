@@ -1,10 +1,13 @@
 import { useStore } from './store';
 import type { RelayMessage, OutgoingMessage } from './types';
 
+type TokenGetter = () => Promise<string | null>;
+
 class RelayConnection {
   private ws: WebSocket | null = null;
   private url: string;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private getToken: TokenGetter | null = null;
 
   constructor() {
     // Use environment variable or default to localhost
@@ -14,6 +17,11 @@ class RelayConnection {
 
   setUrl(url: string) {
     this.url = url;
+  }
+
+  // Set the token getter function for refreshing tokens on reconnect
+  setTokenGetter(getter: TokenGetter) {
+    this.getToken = getter;
   }
 
   connect(token: string): Promise<void> {
@@ -38,7 +46,7 @@ class RelayConnection {
         this.ws.onclose = () => {
           console.log('[Relay] Disconnected');
           useStore.getState().setConnected(false);
-          this.scheduleReconnect(token);
+          this.scheduleReconnect();
         };
 
         this.ws.onerror = (error) => {
@@ -92,16 +100,24 @@ class RelayConnection {
     }
   }
 
-  private scheduleReconnect(token: string) {
+  private scheduleReconnect() {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
 
-    this.reconnectTimeout = setTimeout(() => {
+    this.reconnectTimeout = setTimeout(async () => {
       console.log('[Relay] Reconnecting...');
-      this.connect(token).catch((err) => {
+      try {
+        // Get a fresh token for reconnection
+        const token = this.getToken ? await this.getToken() : null;
+        if (token) {
+          await this.connect(token);
+        } else {
+          console.error('[Relay] No token available for reconnect');
+        }
+      } catch (err) {
         console.error('[Relay] Reconnect failed:', err);
-      });
+      }
     }, 3000);
   }
 
