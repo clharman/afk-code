@@ -15,7 +15,7 @@ Notifications.setNotificationHandler({
 export async function registerForPushNotifications(): Promise<string | null> {
   // Push notifications only work on physical devices
   if (!Device.isDevice) {
-    console.log('Push notifications require a physical device');
+    console.log('[Push] Notifications require a physical device');
     return null;
   }
 
@@ -30,15 +30,22 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   if (finalStatus !== 'granted') {
-    console.log('Push notification permission denied');
+    console.log('[Push] Notification permission denied');
     return null;
   }
 
-  // Get the Expo push token
-  // TODO: Set up Expo project and add projectId for push notifications
-  // For now, skip push token registration
-  console.log('Push notifications not configured yet (missing Expo projectId)');
-  return null;
+  try {
+    // Get the Expo push token
+    // Note: This requires a development build with EAS, won't work in Expo Go
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+    });
+    console.log('[Push] Got push token:', tokenData.data.slice(0, 30) + '...');
+    return tokenData.data;
+  } catch (err) {
+    console.log('[Push] Failed to get push token (dev build required):', (err as Error).message);
+    return null;
+  }
 }
 
 export function setupNotificationListeners() {
@@ -74,4 +81,30 @@ export async function setupNotificationChannel() {
       lightColor: '#6366f1',
     });
   }
+}
+
+// Send a local notification (works without Apple Developer account)
+export async function sendLocalNotification(
+  title: string,
+  body: string,
+  data?: Record<string, unknown>
+) {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title,
+      body,
+      data,
+      sound: 'default',
+    },
+    trigger: null, // null = immediate
+  });
+}
+
+// Notify when a session goes idle
+export async function notifySessionIdle(sessionId: string, sessionName: string) {
+  await sendLocalNotification(
+    'Session Ready',
+    `${sessionName} is waiting for input`,
+    { sessionId }
+  );
 }

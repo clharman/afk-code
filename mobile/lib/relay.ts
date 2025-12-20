@@ -1,5 +1,14 @@
 import { useStore } from './store';
 import type { RelayMessage, OutgoingMessage } from './types';
+import { Platform, AppState } from 'react-native';
+
+// Import notifications dynamically (not available on web)
+let notifySessionIdle: ((sessionId: string, sessionName: string) => Promise<void>) | null = null;
+if (Platform.OS !== 'web') {
+  import('./notifications').then((mod) => {
+    notifySessionIdle = mod.notifySessionIdle;
+  });
+}
 
 type TokenGetter = () => Promise<string | null>;
 
@@ -8,6 +17,7 @@ class RelayConnection {
   private url: string;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private getToken: TokenGetter | null = null;
+  private sessionStatuses: Map<string, string> = new Map(); // Track previous statuses
 
   constructor() {
     // Use environment variable or default to localhost
@@ -79,6 +89,12 @@ class RelayConnection {
         break;
 
       case 'sessions_list':
+        // Initialize status tracking for all sessions
+        for (const session of message.sessions) {
+          if (!this.sessionStatuses.has(session.id)) {
+            this.sessionStatuses.set(session.id, session.status);
+          }
+        }
         store.setSessions(message.sessions);
         break;
 
@@ -90,9 +106,26 @@ class RelayConnection {
         store.appendMessage(message.sessionId, message.role, message.content);
         break;
 
-      case 'session_status':
+      case 'session_status': {
+        const previousStatus = this.sessionStatuses.get(message.sessionId);
+        this.sessionStatuses.set(message.sessionId, message.status);
         store.updateSessionStatus(message.sessionId, message.status);
+
+        // Trigger local notification when session goes from running to idle
+        // Only if app is in background and we have the notification function
+        if (
+          previousStatus === 'running' &&
+          message.status === 'idle' &&
+          notifySessionIdle &&
+          AppState.currentState !== 'active'
+        ) {
+          const session = store.sessions.find((s) => s.id === message.sessionId);
+          if (session) {
+            notifySessionIdle(message.sessionId, session.name);
+          }
+        }
         break;
+      }
 
       case 'error':
         console.error('[Relay] Server error:', message.message);
@@ -129,10 +162,20 @@ class RelayConnection {
 
   subscribeToSession(sessionId: string) {
     this.send({ type: 'subscribe', sessionId });
+    // Auto-track sessions for push notifications when subscribing
+    this.send({ type: 'track_session', sessionId });
   }
 
   unsubscribeFromSession(sessionId: string) {
     this.send({ type: 'unsubscribe', sessionId });
+  }
+
+  trackSession(sessionId: string) {
+    this.send({ type: 'track_session', sessionId });
+  }
+
+  untrackSession(sessionId: string) {
+    this.send({ type: 'untrack_session', sessionId });
   }
 
   sendInput(sessionId: string, text: string) {

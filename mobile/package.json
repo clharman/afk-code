@@ -12,6 +12,7 @@
     "@clerk/clerk-expo": "^2.19.12",
     "@expo/vector-icons": "^15.0.3",
     "expo": "^54.0.0",
+    "expo-dev-client": "^6.0.20",
     "expo-device": "~8.0.10",
     "expo-linking": "^8.0.11",
     "expo-notifications": "~0.32.15",
