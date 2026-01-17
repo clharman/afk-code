@@ -13,15 +13,21 @@ Monitor Claude Code sessions from Slack/Discord.
 ### Architecture
 - **CLI**: `src/cli/` - Commands like `afk run`, `afk slack`, `afk discord`
 - **Slack**: `src/slack/` - Slack bot integration
-- **Discord**: `src/discord/` - Discord bot integration (planned)
+- **Discord**: `src/discord/` - Discord bot integration
 
 ### Running
 ```bash
-# Setup (first time)
+# Slack setup (first time)
 afk slack setup
 
 # Start the Slack bot
 afk slack
+
+# Discord setup (first time)
+afk discord setup
+
+# Start the Discord bot
+afk discord
 
 # Start a monitored Claude Code session (in another terminal)
 afk run -- claude
@@ -30,6 +36,8 @@ afk run -- claude
 ### Key Files
 - `src/cli/index.ts` - CLI entry point
 - `src/cli/slack.ts` - Slack setup and run commands
-- `src/slack/session-manager.ts` - JSONL watching and session tracking
+- `src/cli/discord.ts` - Discord setup and run commands
+- `src/slack/session-manager.ts` - JSONL watching and session tracking (shared)
 - `src/slack/slack-app.ts` - Slack Bolt app and event handlers
+- `src/discord/discord-app.ts` - Discord.js app and event handlers
 - `slack-manifest.json` - Slack app manifest for easy setup
