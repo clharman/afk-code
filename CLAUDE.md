@@ -6,19 +6,30 @@ Default to using Bun instead of Node.js.
 - Use `bun run <script>` instead of `npm run <script>`
 - Bun automatically loads .env, so don't use dotenv.
 
-## Project: Snowfort
+## Project: AFK
 
-Remote access to local Claude Code sessions from mobile.
+Monitor Claude Code sessions from Slack/Discord.
 
 ### Architecture
-- **CLI**: `src/cli/` - Commands like `snowfort run`, `snowfort setup`
-- **Daemon**: `src/daemon/` - Background service managing sessions and relay connection
-- **Relay**: `src/relay/` - Cloud server routing traffic (separate deployment)
-
-### Key Dependencies
-- **AgentAPI**: HTTP wrapper for Claude Code (`go install github.com/coder/agentapi@latest`)
-- **Bun.serve**: WebSocket server for relay
+- **CLI**: `src/cli/` - Commands like `afk run`, `afk slack`, `afk discord`
+- **Slack**: `src/slack/` - Slack bot integration
+- **Discord**: `src/discord/` - Discord bot integration (planned)
 
 ### Running
-- `bun run src/cli/index.ts run -- claude` - Start a session
-- `bun run src/daemon/index.ts` - Run the daemon
+```bash
+# Setup (first time)
+afk slack setup
+
+# Start the Slack bot
+afk slack
+
+# Start a monitored Claude Code session (in another terminal)
+afk run -- claude
+```
+
+### Key Files
+- `src/cli/index.ts` - CLI entry point
+- `src/cli/slack.ts` - Slack setup and run commands
+- `src/slack/session-manager.ts` - JSONL watching and session tracking
+- `src/slack/slack-app.ts` - Slack Bolt app and event handlers
+- `slack-manifest.json` - Slack app manifest for easy setup

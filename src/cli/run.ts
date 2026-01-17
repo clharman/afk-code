@@ -4,7 +4,7 @@ import { spawn as spawnPty } from '@zenyr/bun-pty';
 import type { Socket } from 'bun';
 import { homedir } from 'os';
 
-const DAEMON_SOCKET = '/tmp/snowfort-daemon.sock';
+const DAEMON_SOCKET = '/tmp/afk-daemon.sock';
 
 // Get Claude's project directory for the current working directory
 function getClaudeProjectDir(cwd: string): string {

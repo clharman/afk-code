@@ -1,6 +1,6 @@
 {
   "display_information": {
-    "name": "Snowfort AFK",
+    "name": "AFK Bot",
     "description": "Monitor and interact with Claude Code sessions from Slack",
     "background_color": "#4a154b"
   },
@@ -11,7 +11,7 @@
       "messages_tab_read_only_enabled": false
     },
     "bot_user": {
-      "display_name": "Snowfort AFK",
+      "display_name": "AFK Bot",
       "always_online": true
     },
     "slash_commands": [

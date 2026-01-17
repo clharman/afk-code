@@ -1,9 +1,10 @@
 {
-  "name": "snowfort",
+  "name": "afk",
   "version": "0.1.0",
+  "description": "Monitor Claude Code sessions from Slack/Discord",
   "type": "module",
   "bin": {
-    "snowfort": "./src/cli/index.ts"
+    "afk": "./src/cli/index.ts"
   },
   "scripts": {
     "dev": "bun run src/cli/index.ts",
@@ -18,6 +19,7 @@
     "@slack/bolt": "^4.6.0",
     "@supabase/supabase-js": "^2.88.0",
     "@zenyr/bun-pty": "^0.4.4",
+    "discord.js": "^14.25.1",
     "node-pty": "^1.0.0"
   },
   "devDependencies": {

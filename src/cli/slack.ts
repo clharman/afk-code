@@ -2,9 +2,9 @@ import { homedir } from 'os';
 import { mkdir } from 'fs/promises';
 import * as readline from 'readline';
 
-const SLACK_CONFIG_DIR = `${homedir()}/.snowfort`;
-const SLACK_CONFIG_FILE = `${SLACK_CONFIG_DIR}/slack.env`;
-const MANIFEST_URL = 'https://raw.githubusercontent.com/colinharman/snowfort/main/slack-manifest.json';
+const CONFIG_DIR = `${homedir()}/.afk`;
+const SLACK_CONFIG_FILE = `${CONFIG_DIR}/slack.env`;
+const MANIFEST_URL = 'https://github.com/afkbot/afk/blob/main/slack-manifest.json';
 
 function prompt(question: string): Promise<string> {
   const rl = readline.createInterface({
@@ -22,7 +22,7 @@ function prompt(question: string): Promise<string> {
 export async function slackSetup(): Promise<void> {
   console.log(`
 ┌─────────────────────────────────────────────────────────────┐
-│                 Snowfort Slack Setup                        │
+│                    AFK Slack Setup                          │
 └─────────────────────────────────────────────────────────────┘
 
 This will guide you through setting up the Slack bot for
@@ -77,9 +77,9 @@ Now let's collect your tokens:
   }
 
   // Save configuration
-  await mkdir(SLACK_CONFIG_DIR, { recursive: true });
+  await mkdir(CONFIG_DIR, { recursive: true });
 
-  const envContent = `# Snowfort Slack Configuration
+  const envContent = `# AFK Slack Configuration
 SLACK_BOT_TOKEN=${botToken}
 SLACK_APP_TOKEN=${appToken}
 SLACK_USER_ID=${userId}
@@ -90,19 +90,19 @@ SLACK_USER_ID=${userId}
 ✓ Configuration saved to ${SLACK_CONFIG_FILE}
 
 To start the Slack bot, run:
-  snowfort slack
+  afk slack
 
 Then start a Claude Code session with:
-  snowfort run -- claude
+  afk run -- claude
 `);
 }
 
 export async function slackRun(): Promise<void> {
-  // Load config from ~/.snowfort/slack.env
+  // Load config from ~/.afk/slack.env
   const configFile = Bun.file(SLACK_CONFIG_FILE);
 
   if (!(await configFile.exists())) {
-    console.error('Slack not configured. Run "snowfort slack setup" first.');
+    console.error('Slack not configured. Run "afk slack setup" first.');
     process.exit(1);
   }
 
@@ -121,7 +121,7 @@ export async function slackRun(): Promise<void> {
 
   if (missing.length > 0) {
     console.error(`Missing config: ${missing.join(', ')}`);
-    console.error('Run "snowfort slack setup" to reconfigure.');
+    console.error('Run "afk slack setup" to reconfigure.');
     process.exit(1);
   }
 
@@ -132,9 +132,8 @@ export async function slackRun(): Promise<void> {
 
   // Import and run the slack bot
   const { createSlackApp } = await import('../slack/slack-app');
-  const { SessionManager } = await import('../slack/session-manager');
 
-  console.log('[Snowfort] Starting Slack bot...');
+  console.log('[AFK] Starting Slack bot...');
 
   const slackConfig = {
     botToken: config.SLACK_BOT_TOKEN,
@@ -148,21 +147,21 @@ export async function slackRun(): Promise<void> {
   // Start session manager (Unix socket server for CLI connections)
   try {
     await sessionManager.start();
-    console.log('[Snowfort] Session manager started');
+    console.log('[AFK] Session manager started');
   } catch (err) {
-    console.error('[Snowfort] Failed to start session manager:', err);
+    console.error('[AFK] Failed to start session manager:', err);
     process.exit(1);
   }
 
   // Start Slack app
   try {
     await app.start();
-    console.log('[Snowfort] Slack bot is running!');
+    console.log('[AFK] Slack bot is running!');
     console.log('');
-    console.log('Start a Claude Code session with: snowfort run -- claude');
+    console.log('Start a Claude Code session with: afk run -- claude');
     console.log('Each session will create a private #afk-* channel');
   } catch (err) {
-    console.error('[Snowfort] Failed to start Slack app:', err);
+    console.error('[AFK] Failed to start Slack app:', err);
     process.exit(1);
   }
 }

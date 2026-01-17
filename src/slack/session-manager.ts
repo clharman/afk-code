@@ -8,7 +8,7 @@ import { readdir } from 'fs/promises';
 import type { Socket } from 'bun';
 import type { TodoItem } from '../types';
 
-const DAEMON_SOCKET = '/tmp/snowfort-daemon.sock';
+const DAEMON_SOCKET = '/tmp/afk-daemon.sock';
 
 export interface SessionInfo {
   id: string;

@@ -2,6 +2,7 @@
 
 import { run } from './run';
 import { slackSetup, slackRun } from './slack';
+import { discordSetup, discordRun } from './discord';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -12,8 +13,8 @@ async function main() {
       // Find -- separator and get command after it
       const separatorIndex = args.indexOf('--');
       if (separatorIndex === -1) {
-        console.error('Usage: snowfort run -- <command> [args...]');
-        console.error('Example: snowfort run -- claude');
+        console.error('Usage: afk run -- <command> [args...]');
+        console.error('Example: afk run -- claude');
         process.exit(1);
       }
       const cmd = args.slice(separatorIndex + 1);
@@ -34,30 +35,43 @@ async function main() {
       break;
     }
 
+    case 'discord': {
+      if (args[1] === 'setup') {
+        await discordSetup();
+      } else {
+        await discordRun();
+      }
+      break;
+    }
+
     case 'help':
     case '--help':
     case '-h':
     case undefined: {
       console.log(`
-Snowfort - Monitor Claude Code sessions from Slack
+AFK - Monitor Claude Code sessions from Slack/Discord
 
 Commands:
   slack              Run the Slack bot
   slack setup        Configure Slack integration
+  discord            Run the Discord bot
+  discord setup      Configure Discord integration
   run -- <command>   Start a monitored session
   help               Show this help message
 
 Examples:
-  snowfort slack setup   # First-time Slack configuration
-  snowfort slack         # Start the Slack bot
-  snowfort run -- claude # Start a Claude Code session
+  afk slack setup    # First-time Slack configuration
+  afk slack          # Start the Slack bot
+  afk discord setup  # First-time Discord configuration
+  afk discord        # Start the Discord bot
+  afk run -- claude  # Start a Claude Code session
 `);
       break;
     }
 
     default: {
       console.error(`Unknown command: ${command}`);
-      console.error('Run "snowfort help" for usage');
+      console.error('Run "afk help" for usage');
       process.exit(1);
     }
   }
