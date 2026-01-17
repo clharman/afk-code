@@ -9,13 +9,16 @@
     "dev": "bun run src/cli/index.ts",
     "daemon": "bun run src/daemon/index.ts",
     "relay": "bun run src/relay/index.ts",
+    "slack": "bun run src/slack/index.ts",
     "test": "bun test",
     "test:stack": "bun run test-full-stack.ts"
   },
   "dependencies": {
     "@clerk/backend": "^2.27.1",
+    "@slack/bolt": "^4.6.0",
     "@supabase/supabase-js": "^2.88.0",
-    "@zenyr/bun-pty": "^0.4.4"
+    "@zenyr/bun-pty": "^0.4.4",
+    "node-pty": "^1.0.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

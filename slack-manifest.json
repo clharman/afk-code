@@ -1,0 +1,55 @@
+{
+  "display_information": {
+    "name": "Snowfort AFK",
+    "description": "Monitor and interact with Claude Code sessions from Slack",
+    "background_color": "#4a154b"
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": false,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "Snowfort AFK",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/afk",
+        "description": "List active Claude Code sessions",
+        "usage_hint": "[sessions]",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "channels:history",
+        "channels:read",
+        "chat:write",
+        "chat:write.customize",
+        "commands",
+        "groups:history",
+        "groups:write",
+        "users:read"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "app_home_opened",
+        "message.channels",
+        "message.groups"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": false
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}

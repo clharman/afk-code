@@ -15,17 +15,6 @@ export interface TodoItem {
   activeForm?: string;
 }
 
-// AgentAPI message format
-export interface AgentMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-// AgentAPI status response
-export interface AgentStatus {
-  status: 'stable' | 'running';
-}
-
 // Daemon <-> Relay messages
 export type DaemonMessage =
   | { type: 'auth'; token: string }

@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 
 import { run } from './run';
-import { setup } from './setup';
-import { auth, logout, getDeviceToken } from './auth';
+import { slackSetup, slackRun } from './slack';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -26,38 +25,11 @@ async function main() {
       break;
     }
 
-    case 'auth': {
-      if (args[1] === '--logout' || args[1] === 'logout') {
-        await logout();
-      } else if (args[1] === '--reset' || args[1] === 'reset') {
-        await logout();
-        await auth();
+    case 'slack': {
+      if (args[1] === 'setup') {
+        await slackSetup();
       } else {
-        await auth();
-      }
-      break;
-    }
-
-    case 'setup': {
-      await setup();
-      break;
-    }
-
-    case 'daemon': {
-      // Import and run daemon
-      const { startDaemon } = await import('../daemon/index');
-      await startDaemon();
-      break;
-    }
-
-    case 'status': {
-      const token = await getDeviceToken();
-      if (token) {
-        console.log('✓ Authenticated');
-        console.log(`  Device token: ${token.slice(0, 12)}...`);
-      } else {
-        console.log('✗ Not authenticated');
-        console.log('  Run "snowfort auth" to sign in.');
+        await slackRun();
       }
       break;
     }
@@ -67,22 +39,18 @@ async function main() {
     case '-h':
     case undefined: {
       console.log(`
-Snowfort - Remote access to local Claude Code sessions
+Snowfort - Monitor Claude Code sessions from Slack
 
 Commands:
-  auth               Authenticate with Snowfort
-  auth --logout      Sign out
-  auth --reset       Re-authenticate
-  status             Show authentication status
-  run -- <command>   Start a session with AgentAPI wrapper
-  setup              Configure shell integration
-  daemon             Run the background daemon
+  slack              Run the Slack bot
+  slack setup        Configure Slack integration
+  run -- <command>   Start a monitored session
   help               Show this help message
 
 Examples:
-  snowfort auth
-  snowfort run -- claude
-  snowfort setup
+  snowfort slack setup   # First-time Slack configuration
+  snowfort slack         # Start the Slack bot
+  snowfort run -- claude # Start a Claude Code session
 `);
       break;
     }
