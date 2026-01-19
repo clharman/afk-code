@@ -1,5 +1,5 @@
-import { createSlackApp } from './slack-app';
-import type { SlackConfig } from './types';
+import { createSlackApp } from './slack-app.js';
+import type { SlackConfig } from './types.js';
 
 async function main() {
   const config: SlackConfig = {
@@ -26,7 +26,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('[Slack] Starting AFK bot...');
+  console.log('[Slack] Starting AFK Code bot...');
 
   const { app, sessionManager } = createSlackApp(config);
 
@@ -44,7 +44,7 @@ async function main() {
     await app.start();
     console.log('[Slack] Bot is running!');
     console.log('');
-    console.log('Start a Claude Code session with: bun run dev run -- claude');
+    console.log('Start a Claude Code session with: afk-code run -- claude');
     console.log('Each session will create a private #afk-* channel');
   } catch (err) {
     console.error('[Slack] Failed to start app:', err);

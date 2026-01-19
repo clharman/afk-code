@@ -1,8 +1,6 @@
-#!/usr/bin/env bun
-
-import { run } from './run';
-import { slackSetup, slackRun } from './slack';
-import { discordSetup, discordRun } from './discord';
+import { run } from './run.js';
+import { slackSetup, slackRun } from './slack.js';
+import { discordSetup, discordRun } from './discord.js';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -13,8 +11,8 @@ async function main() {
       // Find -- separator and get command after it
       const separatorIndex = args.indexOf('--');
       if (separatorIndex === -1) {
-        console.error('Usage: afk run -- <command> [args...]');
-        console.error('Example: afk run -- claude');
+        console.error('Usage: afk-code run -- <command> [args...]');
+        console.error('Example: afk-code run -- claude');
         process.exit(1);
       }
       const cmd = args.slice(separatorIndex + 1);
@@ -49,7 +47,7 @@ async function main() {
     case '-h':
     case undefined: {
       console.log(`
-AFK - Monitor Claude Code sessions from Slack/Discord
+AFK Code - Monitor Claude Code sessions from Slack/Discord
 
 Commands:
   slack              Run the Slack bot
@@ -60,18 +58,18 @@ Commands:
   help               Show this help message
 
 Examples:
-  afk slack setup    # First-time Slack configuration
-  afk slack          # Start the Slack bot
-  afk discord setup  # First-time Discord configuration
-  afk discord        # Start the Discord bot
-  afk run -- claude  # Start a Claude Code session
+  afk-code slack setup    # First-time Slack configuration
+  afk-code slack          # Start the Slack bot
+  afk-code discord setup  # First-time Discord configuration
+  afk-code discord        # Start the Discord bot
+  afk-code run -- claude  # Start a Claude Code session
 `);
       break;
     }
 
     default: {
       console.error(`Unknown command: ${command}`);
-      console.error('Run "afk help" for usage');
+      console.error('Run "afk-code help" for usage');
       process.exit(1);
     }
   }

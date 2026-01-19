@@ -1,15 +1,53 @@
 import { App, LogLevel } from '@slack/bolt';
 import { createReadStream } from 'fs';
-import type { SlackConfig } from './types';
-import { SessionManager, type SessionInfo } from './session-manager';
-import { ChannelManager } from './channel-manager';
+import type { SlackConfig } from './types.js';
+import { SessionManager, type SessionInfo, type ToolCallInfo, type ToolResultInfo } from './session-manager.js';
+import { ChannelManager } from './channel-manager.js';
 import {
   markdownToSlack,
   chunkMessage,
   formatSessionStatus,
   formatTodos,
-} from './message-formatter';
-import { extractImagePaths } from '../utils/image-extractor';
+} from './message-formatter.js';
+import { extractImagePaths } from '../utils/image-extractor.js';
+
+// Rate-limited message queue to avoid Slack API limits
+class MessageQueue {
+  private queue: Array<() => Promise<any>> = [];
+  private processing = false;
+  private minDelay = 350; // ms between messages (Slack allows ~1/sec but be safe)
+
+  async add<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await fn();
+          resolve(result);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      this.process();
+    });
+  }
+
+  private async process() {
+    if (this.processing) return;
+    this.processing = true;
+
+    while (this.queue.length > 0) {
+      const fn = this.queue.shift();
+      if (fn) {
+        await fn();
+        if (this.queue.length > 0) {
+          await new Promise((r) => setTimeout(r, this.minDelay));
+        }
+      }
+    }
+
+    this.processing = false;
+  }
+}
 
 export function createSlackApp(config: SlackConfig) {
   const app = new App({
@@ -20,6 +58,7 @@ export function createSlackApp(config: SlackConfig) {
   });
 
   const channelManager = new ChannelManager(app.client, config.userId);
+  const messageQueue = new MessageQueue();
 
   // Track messages sent from Slack to avoid re-posting them when they come back via JSONL
   const slackSentMessages = new Set<string>();
@@ -30,11 +69,13 @@ export function createSlackApp(config: SlackConfig) {
       const channel = await channelManager.createChannel(session.id, session.name, session.cwd);
       if (channel) {
         // Post initial message to channel
-        await app.client.chat.postMessage({
-          channel: channel.channelId,
-          text: `${formatSessionStatus(session.status)} *Session started*\n\`${session.cwd}\``,
-          mrkdwn: true,
-        });
+        await messageQueue.add(() =>
+          app.client.chat.postMessage({
+            channel: channel.channelId,
+            text: `${formatSessionStatus(session.status)} *Session started*\n\`${session.cwd}\``,
+            mrkdwn: true,
+          })
+        );
       }
     },
 
@@ -44,10 +85,12 @@ export function createSlackApp(config: SlackConfig) {
         channelManager.updateStatus(sessionId, 'ended');
 
         // Post final message
-        await app.client.chat.postMessage({
-          channel: channel.channelId,
-          text: ':stop_sign: *Session ended* - this channel will be archived',
-        });
+        await messageQueue.add(() =>
+          app.client.chat.postMessage({
+            channel: channel.channelId,
+            text: ':stop_sign: *Session ended* - this channel will be archived',
+          })
+        );
 
         // Archive the channel
         await channelManager.archiveChannel(sessionId);
@@ -73,16 +116,7 @@ export function createSlackApp(config: SlackConfig) {
     onSessionStatus: async (sessionId, status) => {
       const channel = channelManager.getChannel(sessionId);
       if (channel) {
-        const previousStatus = channel.status;
         channelManager.updateStatus(sessionId, status);
-
-        // Notify user when session becomes idle (finished responding)
-        if (previousStatus === 'running' && status === 'idle') {
-          await app.client.chat.postMessage({
-            channel: channel.channelId,
-            text: `<@${config.userId}> Session is waiting for input`,
-          });
-        }
       }
     },
 
@@ -108,13 +142,15 @@ export function createSlackApp(config: SlackConfig) {
               const userName = userInfo.user?.real_name || userInfo.user?.name || 'User';
               const userIcon = userInfo.user?.profile?.image_72;
 
-              await app.client.chat.postMessage({
-                channel: channel.channelId,
-                text: chunk,
-                username: userName,
-                icon_url: userIcon,
-                mrkdwn: true,
-              });
+              await messageQueue.add(() =>
+                app.client.chat.postMessage({
+                  channel: channel.channelId,
+                  text: chunk,
+                  username: userName,
+                  icon_url: userIcon,
+                  mrkdwn: true,
+                })
+              );
             } catch (err) {
               console.error('[Slack] Failed to post message:', err);
             }
@@ -124,13 +160,15 @@ export function createSlackApp(config: SlackConfig) {
           const chunks = chunkMessage(formatted);
           for (const chunk of chunks) {
             try {
-              await app.client.chat.postMessage({
-                channel: channel.channelId,
-                text: chunk,
-                username: 'Claude Code',
-                icon_url: 'https://claude.ai/favicon.ico',
-                mrkdwn: true,
-              });
+              await messageQueue.add(() =>
+                app.client.chat.postMessage({
+                  channel: channel.channelId,
+                  text: chunk,
+                  username: 'Claude Code',
+                  icon_url: 'https://claude.ai/favicon.ico',
+                  mrkdwn: true,
+                })
+              );
             } catch (err) {
               console.error('[Slack] Failed to post message:', err);
             }
@@ -142,12 +180,14 @@ export function createSlackApp(config: SlackConfig) {
           for (const image of images) {
             try {
               console.log(`[Slack] Uploading image: ${image.resolvedPath}`);
-              await app.client.files.uploadV2({
-                channel_id: channel.channelId,
-                file: createReadStream(image.resolvedPath),
-                filename: image.resolvedPath.split('/').pop() || 'image',
-                initial_comment: `📎 ${image.originalPath}`,
-              });
+              await messageQueue.add(() =>
+                app.client.files.uploadV2({
+                  channel_id: channel.channelId,
+                  file: createReadStream(image.resolvedPath),
+                  filename: image.resolvedPath.split('/').pop() || 'image',
+                  initial_comment: `📎 ${image.originalPath}`,
+                })
+              );
             } catch (err) {
               console.error('[Slack] Failed to upload image:', err);
             }
@@ -161,14 +201,44 @@ export function createSlackApp(config: SlackConfig) {
       if (channel && todos.length > 0) {
         const todosText = formatTodos(todos);
         try {
-          await app.client.chat.postMessage({
-            channel: channel.channelId,
-            text: `*Tasks:*\n${todosText}`,
-            mrkdwn: true,
-          });
+          await messageQueue.add(() =>
+            app.client.chat.postMessage({
+              channel: channel.channelId,
+              text: `*Tasks:*\n${todosText}`,
+              mrkdwn: true,
+            })
+          );
         } catch (err) {
           console.error('[Slack] Failed to post todos:', err);
         }
+      }
+    },
+
+    onToolCall: async (_sessionId, _tool) => {
+      // Disabled for now to reduce message volume
+    },
+
+    onToolResult: async (_sessionId, _result) => {
+      // Disabled for now to reduce message volume
+    },
+
+    onPlanModeChange: async (sessionId, inPlanMode) => {
+      const channel = channelManager.getChannel(sessionId);
+      if (!channel) return;
+
+      const emoji = inPlanMode ? ':clipboard:' : ':hammer:';
+      const status = inPlanMode ? 'Planning mode - Claude is designing a solution' : 'Execution mode - Claude is implementing';
+
+      try {
+        await messageQueue.add(() =>
+          app.client.chat.postMessage({
+            channel: channel.channelId,
+            text: `${emoji} ${status}`,
+            mrkdwn: true,
+          })
+        );
+      } catch (err) {
+        console.error('[Slack] Failed to post plan mode change:', err);
       }
     },
   });
@@ -216,7 +286,7 @@ export function createSlackApp(config: SlackConfig) {
     if (subcommand === 'sessions' || !subcommand) {
       const active = channelManager.getAllActive();
       if (active.length === 0) {
-        await respond('No active sessions. Start a session with `bun run dev run -- claude`');
+        await respond('No active sessions. Start a session with `afk-code run -- claude`');
         return;
       }
 
@@ -233,6 +303,81 @@ export function createSlackApp(config: SlackConfig) {
     }
   });
 
+  // Slash command: /background - Send Ctrl+B to put Claude in background mode
+  app.command('/background', async ({ command, ack, respond }) => {
+    await ack();
+
+    const sessionId = channelManager.getSessionByChannel(command.channel_id);
+    if (!sessionId) {
+      await respond(':warning: This channel is not associated with an active session.');
+      return;
+    }
+
+    const channel = channelManager.getChannel(sessionId);
+    if (!channel || channel.status === 'ended') {
+      await respond(':warning: This session has ended.');
+      return;
+    }
+
+    // Send Ctrl+B (ASCII 2)
+    const sent = sessionManager.sendInput(sessionId, '\x02');
+    if (sent) {
+      await respond(':arrow_heading_down: Sent background command (Ctrl+B)');
+    } else {
+      await respond(':warning: Failed to send command - session not connected.');
+    }
+  });
+
+  // Slash command: /interrupt - Send Escape to interrupt Claude
+  app.command('/interrupt', async ({ command, ack, respond }) => {
+    await ack();
+
+    const sessionId = channelManager.getSessionByChannel(command.channel_id);
+    if (!sessionId) {
+      await respond(':warning: This channel is not associated with an active session.');
+      return;
+    }
+
+    const channel = channelManager.getChannel(sessionId);
+    if (!channel || channel.status === 'ended') {
+      await respond(':warning: This session has ended.');
+      return;
+    }
+
+    // Send Escape (ASCII 27)
+    const sent = sessionManager.sendInput(sessionId, '\x1b');
+    if (sent) {
+      await respond(':stop_sign: Sent interrupt (Escape)');
+    } else {
+      await respond(':warning: Failed to send command - session not connected.');
+    }
+  });
+
+  // Slash command: /mode - Send Shift+Tab to toggle mode
+  app.command('/mode', async ({ command, ack, respond }) => {
+    await ack();
+
+    const sessionId = channelManager.getSessionByChannel(command.channel_id);
+    if (!sessionId) {
+      await respond(':warning: This channel is not associated with an active session.');
+      return;
+    }
+
+    const channel = channelManager.getChannel(sessionId);
+    if (!channel || channel.status === 'ended') {
+      await respond(':warning: This session has ended.');
+      return;
+    }
+
+    // Send Shift+Tab (ESC [ Z)
+    const sent = sessionManager.sendInput(sessionId, '\x1b[Z');
+    if (sent) {
+      await respond(':arrows_counterclockwise: Sent mode toggle (Shift+Tab)');
+    } else {
+      await respond(':warning: Failed to send command - session not connected.');
+    }
+  });
+
   // App Home tab
   app.event('app_home_opened', async ({ event, client }) => {
     const active = channelManager.getAllActive();
@@ -240,7 +385,7 @@ export function createSlackApp(config: SlackConfig) {
     const blocks: any[] = [
       {
         type: 'header',
-        text: { type: 'plain_text', text: 'AFK Sessions', emoji: true },
+        text: { type: 'plain_text', text: 'AFK Code Sessions', emoji: true },
       },
       { type: 'divider' },
     ];
@@ -250,7 +395,7 @@ export function createSlackApp(config: SlackConfig) {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: '_No active sessions_\n\nStart a session with `bun run dev run -- claude`',
+          text: '_No active sessions_\n\nStart a session with `afk-code run -- claude`',
         },
       });
     } else {

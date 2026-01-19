@@ -1,4 +1,4 @@
-import type { TodoItem } from '../types';
+import type { TodoItem } from '../types.js';
 
 /**
  * Convert GitHub-flavored markdown to Slack mrkdwn format

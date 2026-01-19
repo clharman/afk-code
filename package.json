@@ -1,22 +1,48 @@
 {
-  "name": "afk",
-  "version": "0.1.0",
-  "description": "Monitor Claude Code sessions from Slack/Discord",
+  "name": "afk-code",
+  "version": "0.1.1",
+  "description": "Monitor and interact with Claude Code sessions from Slack/Discord",
+  "author": "Colin Harman",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clharman/afk-code.git"
+  },
   "type": "module",
   "bin": {
-    "afk": "./src/cli/index.ts"
+    "afk-code": "./dist/cli/index.js"
   },
   "scripts": {
-    "dev": "bun run src/cli/index.ts",
-    "test": "bun test"
+    "build": "tsup",
+    "dev": "tsx src/cli/index.ts",
+    "prepublishOnly": "npm run build"
   },
+  "files": [
+    "dist",
+    "slack-manifest.json",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "slack",
+    "discord",
+    "bot",
+    "ai",
+    "cli"
+  ],
+  "license": "MIT",
   "dependencies": {
     "@slack/bolt": "^4.6.0",
-    "@zenyr/bun-pty": "^0.4.4",
-    "discord.js": "^14.25.1"
+    "discord.js": "^14.25.1",
+    "node-pty": "^1.0.0"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }
 }

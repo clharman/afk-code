@@ -1,10 +1,10 @@
 import { homedir } from 'os';
-import { mkdir } from 'fs/promises';
+import { mkdir, writeFile, readFile, access } from 'fs/promises';
 import * as readline from 'readline';
 
-const CONFIG_DIR = `${homedir()}/.afk`;
+const CONFIG_DIR = `${homedir()}/.afk-code`;
 const SLACK_CONFIG_FILE = `${CONFIG_DIR}/slack.env`;
-const MANIFEST_URL = 'https://github.com/afkbot/afk/blob/main/slack-manifest.json';
+const MANIFEST_URL = 'https://github.com/clharman/afk-code/blob/main/slack-manifest.json';
 
 function prompt(question: string): Promise<string> {
   const rl = readline.createInterface({
@@ -19,10 +19,19 @@ function prompt(question: string): Promise<string> {
   });
 }
 
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function slackSetup(): Promise<void> {
   console.log(`
 ┌─────────────────────────────────────────────────────────────┐
-│                    AFK Slack Setup                          │
+│                  AFK Code Slack Setup                       │
 └─────────────────────────────────────────────────────────────┘
 
 This will guide you through setting up the Slack bot for
@@ -79,34 +88,28 @@ Now let's collect your tokens:
   // Save configuration
   await mkdir(CONFIG_DIR, { recursive: true });
 
-  const envContent = `# AFK Slack Configuration
+  const envContent = `# AFK Code Slack Configuration
 SLACK_BOT_TOKEN=${botToken}
 SLACK_APP_TOKEN=${appToken}
 SLACK_USER_ID=${userId}
 `;
 
-  await Bun.write(SLACK_CONFIG_FILE, envContent);
+  await writeFile(SLACK_CONFIG_FILE, envContent);
   console.log(`
 ✓ Configuration saved to ${SLACK_CONFIG_FILE}
 
 To start the Slack bot, run:
-  afk slack
+  afk-code slack
 
 Then start a Claude Code session with:
-  afk run -- claude
+  afk-code run -- claude
 `);
 }
 
-export async function slackRun(): Promise<void> {
-  // Load config from ~/.afk/slack.env
-  const configFile = Bun.file(SLACK_CONFIG_FILE);
+async function loadEnvFile(path: string): Promise<Record<string, string>> {
+  if (!(await fileExists(path))) return {};
 
-  if (!(await configFile.exists())) {
-    console.error('Slack not configured. Run "afk slack setup" first.');
-    process.exit(1);
-  }
-
-  const content = await configFile.text();
+  const content = await readFile(path, 'utf-8');
   const config: Record<string, string> = {};
 
   for (const line of content.split('\n')) {
@@ -114,6 +117,28 @@ export async function slackRun(): Promise<void> {
     const [key, ...valueParts] = line.split('=');
     config[key.trim()] = valueParts.join('=').trim();
   }
+  return config;
+}
+
+export async function slackRun(): Promise<void> {
+  // Load config from multiple sources (in order of precedence):
+  // 1. Environment variables (highest priority)
+  // 2. Local .env file
+  // 3. ~/.afk-code/slack.env (lowest priority)
+
+  const globalConfig = await loadEnvFile(SLACK_CONFIG_FILE);
+  const localConfig = await loadEnvFile(`${process.cwd()}/.env`);
+
+  // Merge configs (local overrides global, env vars override both)
+  const config: Record<string, string> = {
+    ...globalConfig,
+    ...localConfig,
+  };
+
+  // Environment variables take highest precedence
+  if (process.env.SLACK_BOT_TOKEN) config.SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
+  if (process.env.SLACK_APP_TOKEN) config.SLACK_APP_TOKEN = process.env.SLACK_APP_TOKEN;
+  if (process.env.SLACK_USER_ID) config.SLACK_USER_ID = process.env.SLACK_USER_ID;
 
   // Validate required config
   const required = ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN', 'SLACK_USER_ID'];
@@ -121,7 +146,11 @@ export async function slackRun(): Promise<void> {
 
   if (missing.length > 0) {
     console.error(`Missing config: ${missing.join(', ')}`);
-    console.error('Run "afk slack setup" to reconfigure.');
+    console.error('');
+    console.error('Provide tokens via:');
+    console.error('  - Environment variables (SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_USER_ID)');
+    console.error('  - Local .env file');
+    console.error('  - Run "afk-code slack setup" for guided configuration');
     process.exit(1);
   }
 
@@ -131,9 +160,14 @@ export async function slackRun(): Promise<void> {
   process.env.SLACK_USER_ID = config.SLACK_USER_ID;
 
   // Import and run the slack bot
-  const { createSlackApp } = await import('../slack/slack-app');
+  const { createSlackApp } = await import('../slack/slack-app.js');
 
-  console.log('[AFK] Starting Slack bot...');
+  // Show where config was loaded from
+  const localEnvExists = await fileExists(`${process.cwd()}/.env`);
+  const globalEnvExists = await fileExists(SLACK_CONFIG_FILE);
+  const source = localEnvExists ? '.env' : globalEnvExists ? SLACK_CONFIG_FILE : 'environment';
+  console.log(`[AFK Code] Loaded config from ${source}`);
+  console.log('[AFK Code] Starting Slack bot...');
 
   const slackConfig = {
     botToken: config.SLACK_BOT_TOKEN,
@@ -147,21 +181,21 @@ export async function slackRun(): Promise<void> {
   // Start session manager (Unix socket server for CLI connections)
   try {
     await sessionManager.start();
-    console.log('[AFK] Session manager started');
+    console.log('[AFK Code] Session manager started');
   } catch (err) {
-    console.error('[AFK] Failed to start session manager:', err);
+    console.error('[AFK Code] Failed to start session manager:', err);
     process.exit(1);
   }
 
   // Start Slack app
   try {
     await app.start();
-    console.log('[AFK] Slack bot is running!');
+    console.log('[AFK Code] Slack bot is running!');
     console.log('');
-    console.log('Start a Claude Code session with: afk run -- claude');
+    console.log('Start a Claude Code session with: afk-code run -- claude');
     console.log('Each session will create a private #afk-* channel');
   } catch (err) {
-    console.error('[AFK] Failed to start Slack app:', err);
+    console.error('[AFK Code] Failed to start Slack app:', err);
     process.exit(1);
   }
 }

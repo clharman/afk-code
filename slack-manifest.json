@@ -1,6 +1,6 @@
 {
   "display_information": {
-    "name": "AFK Bot",
+    "name": "AFK Code",
     "description": "Monitor and interact with Claude Code sessions from Slack",
     "background_color": "#4a154b"
   },
@@ -11,7 +11,7 @@
       "messages_tab_read_only_enabled": false
     },
     "bot_user": {
-      "display_name": "AFK Bot",
+      "display_name": "AFK Code",
       "always_online": true
     },
     "slash_commands": [
@@ -19,6 +19,21 @@
         "command": "/afk",
         "description": "List active Claude Code sessions",
         "usage_hint": "[sessions]",
+        "should_escape": false
+      },
+      {
+        "command": "/background",
+        "description": "Send background signal to Claude Code (Ctrl+B)",
+        "should_escape": false
+      },
+      {
+        "command": "/interrupt",
+        "description": "Interrupt Claude Code (Escape)",
+        "should_escape": false
+      },
+      {
+        "command": "/mode",
+        "description": "Toggle Claude Code mode (Shift+Tab)",
         "should_escape": false
       }
     ]

@@ -1,10 +1,9 @@
 import { randomUUID } from 'crypto';
-import { spawn } from 'bun';
-import { spawn as spawnPty } from '@zenyr/bun-pty';
-import type { Socket } from 'bun';
 import { homedir } from 'os';
+import { createConnection, type Socket } from 'net';
+import * as pty from 'node-pty';
 
-const DAEMON_SOCKET = '/tmp/afk-daemon.sock';
+const DAEMON_SOCKET = '/tmp/afk-code-daemon.sock';
 
 // Get Claude's project directory for the current working directory
 function getClaudeProjectDir(cwd: string): string {
@@ -14,61 +13,58 @@ function getClaudeProjectDir(cwd: string): string {
 }
 
 // Connect to daemon and maintain bidirectional communication
-async function connectToDaemon(
+function connectToDaemon(
   sessionId: string,
   projectDir: string,
   cwd: string,
   command: string[],
   onInput: (text: string) => void
 ): Promise<{ close: () => void } | null> {
-  try {
+  return new Promise((resolve) => {
+    const socket = createConnection(DAEMON_SOCKET);
     let messageBuffer = '';
 
-    const socket = await Bun.connect({
-      unix: DAEMON_SOCKET,
-      socket: {
-        data(socket, data) {
-          messageBuffer += data.toString();
+    socket.on('connect', () => {
+      // Tell daemon about this session
+      socket.write(JSON.stringify({
+        type: 'session_start',
+        id: sessionId,
+        projectDir,
+        cwd,
+        command,
+        name: command.join(' '),
+      }) + '\n');
 
-          const lines = messageBuffer.split('\n');
-          messageBuffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              const msg = JSON.parse(line);
-              if (msg.type === 'input' && msg.text) {
-                onInput(msg.text);
-              }
-            } catch {}
-          }
+      resolve({
+        close: () => {
+          socket.write(JSON.stringify({ type: 'session_end', sessionId }) + '\n');
+          socket.end();
         },
-        error(socket, error) {
-          console.error('[Session] Daemon connection error:', error);
-        },
-        close(socket) {},
-      },
+      });
     });
 
-    // Tell daemon about this session
-    socket.write(JSON.stringify({
-      type: 'session_start',
-      id: sessionId,
-      projectDir,
-      cwd,
-      command,
-      name: command.join(' '),
-    }) + '\n');
+    socket.on('data', (data) => {
+      messageBuffer += data.toString();
 
-    return {
-      close: () => {
-        socket.write(JSON.stringify({ type: 'session_end', sessionId }) + '\n');
-        socket.end();
-      },
-    };
-  } catch {
-    return null;
-  }
+      const lines = messageBuffer.split('\n');
+      messageBuffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+          if (msg.type === 'input' && msg.text) {
+            onInput(msg.text);
+          }
+        } catch {}
+      }
+    });
+
+    socket.on('error', (error) => {
+      // Daemon not running - that's okay, run without it
+      resolve(null);
+    });
+  });
 }
 
 export async function run(command: string[]): Promise<void> {
@@ -76,11 +72,11 @@ export async function run(command: string[]): Promise<void> {
   const cwd = process.cwd();
   const projectDir = getClaudeProjectDir(cwd);
 
-  // Use bun-pty for full terminal features + remote input
+  // Use node-pty for full terminal features + remote input
   const cols = process.stdout.columns || 80;
   const rows = process.stdout.rows || 24;
 
-  const pty = spawnPty(command[0], command.slice(1), {
+  const ptyProcess = pty.spawn(command[0], command.slice(1), {
     name: process.env.TERM || 'xterm-256color',
     cols,
     rows,
@@ -94,7 +90,7 @@ export async function run(command: string[]): Promise<void> {
     cwd,
     command,
     (text) => {
-      pty.write(text);
+      ptyProcess.write(text);
     }
   );
 
@@ -102,23 +98,28 @@ export async function run(command: string[]): Promise<void> {
     process.stdin.setRawMode(true);
   }
 
-  pty.onData((data: string) => {
+  ptyProcess.onData((data: string) => {
     process.stdout.write(data);
   });
 
-  process.stdin.on('data', (data: Buffer) => {
-    pty.write(data.toString());
-  });
+  const onStdinData = (data: Buffer) => {
+    ptyProcess.write(data.toString());
+  };
+  process.stdin.on('data', onStdinData);
 
   process.stdout.on('resize', () => {
-    pty.resize(process.stdout.columns || 80, process.stdout.rows || 24);
+    ptyProcess.resize(process.stdout.columns || 80, process.stdout.rows || 24);
   });
 
   await new Promise<void>((resolve) => {
-    pty.onExit(() => {
+    ptyProcess.onExit(() => {
+      // Clean up stdin
+      process.stdin.removeListener('data', onStdinData);
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(false);
       }
+      process.stdin.unref();
+
       daemon?.close();
       resolve();
     });

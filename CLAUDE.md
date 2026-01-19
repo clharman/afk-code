@@ -1,41 +1,33 @@
-Default to using Bun instead of Node.js.
+## Project: AFK Code
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun install` instead of `npm install`
-- Use `bun run <script>` instead of `npm run <script>`
-- Bun automatically loads .env, so don't use dotenv.
-
-## Project: AFK
-
-Monitor Claude Code sessions from Slack/Discord.
+Interact with Claude Code sessions from Slack and Discord.
 
 ### Architecture
-- **CLI**: `src/cli/` - Commands like `afk run`, `afk slack`, `afk discord`
+- **CLI**: `src/cli/` - Commands like `afk-code run`, `afk-code slack`, `afk-code discord`
 - **Slack**: `src/slack/` - Slack bot integration
 - **Discord**: `src/discord/` - Discord bot integration
 
 ### Running
 ```bash
 # Slack setup (first time)
-afk slack setup
+afk-code slack setup
 
 # Start the Slack bot
-afk slack
+afk-code slack
 
 # Discord setup (first time)
-afk discord setup
+afk-code discord setup
 
 # Start the Discord bot
-afk discord
+afk-code discord
 
 # Start a monitored Claude Code session (in another terminal)
-afk run -- claude
+afk-code run -- claude
 ```
 
 ### Key Files
 - `src/cli/index.ts` - CLI entry point
-- `src/cli/run.ts` - `afk run` command (PTY + JSONL watching)
+- `src/cli/run.ts` - `afk-code run` command (PTY + JSONL watching)
 - `src/cli/slack.ts` - Slack setup and run commands
 - `src/cli/discord.ts` - Discord setup and run commands
 - `src/slack/session-manager.ts` - JSONL watching and session tracking (shared)

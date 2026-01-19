@@ -47,16 +47,16 @@ export class ChannelManager {
     const guildId = guilds.first()!.id;
     this.guild = await this.client.guilds.fetch(guildId);
 
-    // Find or create AFK category
+    // Find or create AFK Code category
     const existingCategory = this.guild.channels.cache.find(
-      (ch) => ch.type === ChannelType.GuildCategory && ch.name.toLowerCase() === 'afk sessions'
+      (ch) => ch.type === ChannelType.GuildCategory && ch.name.toLowerCase() === 'afk code sessions'
     ) as CategoryChannel | undefined;
 
     if (existingCategory) {
       this.category = existingCategory;
     } else {
       this.category = await this.guild.channels.create({
-        name: 'AFK Sessions',
+        name: 'AFK Code Sessions',
         type: ChannelType.GuildCategory,
       });
     }
