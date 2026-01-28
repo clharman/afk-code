@@ -283,8 +283,18 @@ export function createDiscordApp(config: DiscordConfig) {
         .setName('mode')
         .setDescription('Toggle Claude mode (Shift+Tab)'),
       new SlashCommandBuilder()
-        .setName('afk')
+        .setName('sessions')
         .setDescription('List active Claude Code sessions'),
+      new SlashCommandBuilder()
+        .setName('compact')
+        .setDescription('Compact the conversation (/compact)'),
+      new SlashCommandBuilder()
+        .setName('model')
+        .setDescription('Switch Claude model')
+        .addStringOption(option =>
+          option.setName('name')
+            .setDescription('Model name (opus, sonnet, haiku)')
+            .setRequired(true)),
     ];
 
     try {
@@ -304,7 +314,7 @@ export function createDiscordApp(config: DiscordConfig) {
 
     const { commandName, channelId } = interaction;
 
-    if (commandName === 'afk') {
+    if (commandName === 'sessions') {
       const active = channelManager.getAllActive();
       if (active.length === 0) {
         await interaction.reply('No active sessions. Start a session with `afk-code run -- claude`');
@@ -349,6 +359,49 @@ export function createDiscordApp(config: DiscordConfig) {
       const sent = sessionManager.sendInput(sessionId, key);
       if (sent) {
         await interaction.reply(message);
+      } else {
+        await interaction.reply('⚠️ Failed to send command - session not connected.');
+      }
+    }
+
+    if (commandName === 'compact') {
+      const sessionId = channelManager.getSessionByChannel(channelId);
+      if (!sessionId) {
+        await interaction.reply('⚠️ This channel is not associated with an active session.');
+        return;
+      }
+
+      const channel = channelManager.getChannel(sessionId);
+      if (!channel || channel.status === 'ended') {
+        await interaction.reply('⚠️ This session has ended.');
+        return;
+      }
+
+      const sent = sessionManager.sendInput(sessionId, '/compact\n');
+      if (sent) {
+        await interaction.reply('🗜️ Sent /compact');
+      } else {
+        await interaction.reply('⚠️ Failed to send command - session not connected.');
+      }
+    }
+
+    if (commandName === 'model') {
+      const sessionId = channelManager.getSessionByChannel(channelId);
+      if (!sessionId) {
+        await interaction.reply('⚠️ This channel is not associated with an active session.');
+        return;
+      }
+
+      const channel = channelManager.getChannel(sessionId);
+      if (!channel || channel.status === 'ended') {
+        await interaction.reply('⚠️ This session has ended.');
+        return;
+      }
+
+      const modelArg = interaction.options.getString('name', true);
+      const sent = sessionManager.sendInput(sessionId, `/model ${modelArg}\n`);
+      if (sent) {
+        await interaction.reply(`🧠 Sent /model ${modelArg}`);
       } else {
         await interaction.reply('⚠️ Failed to send command - session not connected.');
       }

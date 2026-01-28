@@ -1,6 +1,7 @@
 import { run } from './run.js';
 import { slackSetup, slackRun } from './slack.js';
 import { discordSetup, discordRun } from './discord.js';
+import { telegramSetup, telegramRun } from './telegram.js';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -42,27 +43,40 @@ async function main() {
       break;
     }
 
+    case 'telegram': {
+      if (args[1] === 'setup') {
+        await telegramSetup();
+      } else {
+        await telegramRun();
+      }
+      break;
+    }
+
     case 'help':
     case '--help':
     case '-h':
     case undefined: {
       console.log(`
-AFK Code - Monitor Claude Code sessions from Slack/Discord
+AFK Code - Monitor Claude Code sessions from Slack/Discord/Telegram
 
 Commands:
   slack              Run the Slack bot
   slack setup        Configure Slack integration
   discord            Run the Discord bot
   discord setup      Configure Discord integration
+  telegram           Run the Telegram bot
+  telegram setup     Configure Telegram integration
   run -- <command>   Start a monitored session
   help               Show this help message
 
 Examples:
-  afk-code slack setup    # First-time Slack configuration
-  afk-code slack          # Start the Slack bot
-  afk-code discord setup  # First-time Discord configuration
-  afk-code discord        # Start the Discord bot
-  afk-code run -- claude  # Start a Claude Code session
+  afk-code slack setup      # First-time Slack configuration
+  afk-code slack            # Start the Slack bot
+  afk-code discord setup    # First-time Discord configuration
+  afk-code discord          # Start the Discord bot
+  afk-code telegram setup   # First-time Telegram configuration
+  afk-code telegram         # Start the Telegram bot
+  afk-code run -- claude    # Start a Claude Code session
 `);
       break;
     }

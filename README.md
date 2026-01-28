@@ -1,6 +1,6 @@
 # AFK Code
 
-Monitor and interact with Claude Code sessions from Slack or Discord. Respond from your phone while AFK.
+Monitor and interact with Claude Code sessions from Slack, Discord, or Telegram. Respond from your phone while AFK.
 
 ![square-image](https://github.com/user-attachments/assets/83083b63-9ca2-4ef0-b83d-fcc51bd2fff9)
 
@@ -45,6 +45,26 @@ npx afk-code discord         # Start the bot
 npx afk-code run -- claude
 ```
 
+## Quick Start (Telegram)
+
+```bash
+# 1. Create a bot with @BotFather on Telegram
+#    - Send /newbot and follow the prompts
+#    - Copy the bot token
+
+# 2. Get your Chat ID
+#    - Message your bot, then visit:
+#    - https://api.telegram.org/bot<TOKEN>/getUpdates
+#    - Find "chat":{"id":YOUR_CHAT_ID}
+
+# 3. Configure and run
+npx afk-code telegram setup   # Enter your credentials
+npx afk-code telegram         # Start the bot
+
+# 4. In another terminal, start a monitored Claude session
+npx afk-code run -- claude
+```
+
 ## Commands
 
 ```
@@ -52,17 +72,23 @@ afk-code slack setup        Configure Slack credentials
 afk-code slack              Run the Slack bot
 afk-code discord setup      Configure Discord credentials
 afk-code discord            Run the Discord bot
+afk-code telegram setup     Configure Telegram credentials
+afk-code telegram           Run the Telegram bot
 afk-code run -- <command>   Start a monitored session
 afk-code help               Show help
 ```
 
-### Slack Slash Commands
+### Slash Commands
 
-- `/afk` - List active sessions
-- `/background` - Send Ctrl+B (background signal)
-- `/interrupt` - Send Escape (interrupt signal)
-- `/mode` - Send Shift+Tab (toggle mode)
-    - Not recommended since you don't get feedback on what mode you're in
+| Command | Slack | Discord | Telegram | Description |
+|---------|:-----:|:-------:|:--------:|-------------|
+| `/sessions` | ✓ | ✓ | ✓ | List active sessions |
+| `/switch <name>` | - | - | ✓ | Switch session (Telegram only) |
+| `/model <name>` | ✓ | ✓ | ✓ | Switch model (opus, sonnet, haiku) |
+| `/compact` | ✓ | ✓ | ✓ | Compact the conversation |
+| `/background` | ✓ | ✓ | ✓ | Send Ctrl+B (background mode) |
+| `/interrupt` | ✓ | ✓ | ✓ | Send Escape (interrupt) |
+| `/mode` | ✓ | ✓ | ✓ | Toggle mode (Shift+Tab) |
 
 ## Installation Options
 
@@ -84,7 +110,7 @@ Requires Node.js 18+.
 
 ## How It Works
 
-1. `afk-code slack` or `afk-code discord` starts a bot that listens for sessions
+1. `afk-code slack`, `afk-code discord`, or `afk-code telegram` starts a bot that listens for sessions
 2. `afk-code run -- claude` spawns Claude in a PTY and connects to the bot via Unix socket
 3. The bot watches Claude's JSONL files for messages and relays them to chat
 4. Messages you send in chat are forwarded to the terminal

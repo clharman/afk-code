@@ -277,8 +277,8 @@ export function createSlackApp(config: SlackConfig) {
     }
   });
 
-  // Slash command: /afk [sessions]
-  app.command('/afk', async ({ command, ack, respond }) => {
+  // Slash command: /sessions
+  app.command('/sessions', async ({ command, ack, respond }) => {
     await ack();
 
     const subcommand = command.text.trim().split(' ')[0];
@@ -299,7 +299,7 @@ export function createSlackApp(config: SlackConfig) {
         mrkdwn: true,
       });
     } else {
-      await respond('Unknown command. Available: `/afk sessions`');
+      await respond('Unknown command. Try `/sessions`');
     }
   });
 
@@ -373,6 +373,60 @@ export function createSlackApp(config: SlackConfig) {
     const sent = sessionManager.sendInput(sessionId, '\x1b[Z');
     if (sent) {
       await respond(':arrows_counterclockwise: Sent mode toggle (Shift+Tab)');
+    } else {
+      await respond(':warning: Failed to send command - session not connected.');
+    }
+  });
+
+  // Slash command: /compact - Send /compact to compact the conversation
+  app.command('/compact', async ({ command, ack, respond }) => {
+    await ack();
+
+    const sessionId = channelManager.getSessionByChannel(command.channel_id);
+    if (!sessionId) {
+      await respond(':warning: This channel is not associated with an active session.');
+      return;
+    }
+
+    const channel = channelManager.getChannel(sessionId);
+    if (!channel || channel.status === 'ended') {
+      await respond(':warning: This session has ended.');
+      return;
+    }
+
+    const sent = sessionManager.sendInput(sessionId, '/compact\n');
+    if (sent) {
+      await respond(':compression: Sent /compact');
+    } else {
+      await respond(':warning: Failed to send command - session not connected.');
+    }
+  });
+
+  // Slash command: /model - Switch Claude model
+  app.command('/model', async ({ command, ack, respond }) => {
+    await ack();
+
+    const sessionId = channelManager.getSessionByChannel(command.channel_id);
+    if (!sessionId) {
+      await respond(':warning: This channel is not associated with an active session.');
+      return;
+    }
+
+    const channel = channelManager.getChannel(sessionId);
+    if (!channel || channel.status === 'ended') {
+      await respond(':warning: This session has ended.');
+      return;
+    }
+
+    const modelArg = command.text.trim();
+    if (!modelArg) {
+      await respond('Usage: `/model <opus|sonnet|haiku>`');
+      return;
+    }
+
+    const sent = sessionManager.sendInput(sessionId, `/model ${modelArg}\n`);
+    if (sent) {
+      await respond(`:brain: Sent /model ${modelArg}`);
     } else {
       await respond(':warning: Failed to send command - session not connected.');
     }

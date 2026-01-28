@@ -16,9 +16,8 @@
     },
     "slash_commands": [
       {
-        "command": "/afk",
+        "command": "/sessions",
         "description": "List active Claude Code sessions",
-        "usage_hint": "[sessions]",
         "should_escape": false
       },
       {
@@ -34,6 +33,17 @@
       {
         "command": "/mode",
         "description": "Toggle Claude Code mode (Shift+Tab)",
+        "should_escape": false
+      },
+      {
+        "command": "/compact",
+        "description": "Compact the Claude Code conversation",
+        "should_escape": false
+      },
+      {
+        "command": "/model",
+        "description": "Switch Claude model (opus, sonnet, haiku)",
+        "usage_hint": "<model>",
         "should_escape": false
       }
     ]
