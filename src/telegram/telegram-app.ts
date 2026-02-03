@@ -9,6 +9,7 @@ const MAX_MESSAGE_LENGTH = 4000;
 interface SessionTracking {
   sessionId: string;
   sessionName: string;
+  projectName: string;
   lastActivity: Date;
 }
 
@@ -84,9 +85,12 @@ export function createTelegramApp(config: TelegramConfig) {
   // Create session manager with Telegram event handlers
   const sessionManager = new SessionManager({
     onSessionStart: async (session) => {
+      // Extract project name from working directory for better session identification
+      const projectName = session.cwd.split('/').filter(Boolean).pop() || 'unknown';
       activeSessions.set(session.id, {
         sessionId: session.id,
         sessionName: session.name,
+        projectName: projectName,
         lastActivity: new Date(),
       });
 
@@ -289,7 +293,8 @@ export function createTelegramApp(config: TelegramConfig) {
         const list = Array.from(activeSessions.values())
           .map((s) => {
             const isCurrent = current && s.sessionId === current.sessionId;
-            return isCurrent ? `• *${s.sessionName}* ← current` : `• ${s.sessionName}`;
+            const displayName = `${s.projectName}/${s.sessionName}`;
+            return isCurrent ? `• *${displayName}* ← current` : `• ${displayName}`;
           })
           .join('\n');
 
@@ -308,7 +313,8 @@ export function createTelegramApp(config: TelegramConfig) {
           const list = Array.from(activeSessions.values())
             .map((s) => {
               const isCurrent = current && s.sessionId === current.sessionId;
-              return isCurrent ? `• *${s.sessionName}* ← current` : `• ${s.sessionName}`;
+              const displayName = `${s.projectName}/${s.sessionName}`;
+              return isCurrent ? `• *${displayName}* ← current` : `• ${displayName}`;
             })
             .join('\n');
           await ctx.reply(`*Sessions:*\n${list}\n\nUse: \`/switch <name>\``, { parse_mode: 'Markdown' });
