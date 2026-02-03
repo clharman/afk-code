@@ -1,7 +1,8 @@
-import { Bot, Context } from 'grammy';
+import { Bot, Context, InputFile } from 'grammy';
 import type { TelegramConfig } from './types.js';
 import { SessionManager, type SessionInfo } from '../slack/session-manager.js';
 import { chunkMessage, formatTodos } from '../slack/message-formatter.js';
+import { extractImagePaths } from '../utils/image-extractor.js';
 
 // Telegram has a 4096 character limit per message
 const MAX_MESSAGE_LENGTH = 4000;
@@ -144,6 +145,30 @@ export function createTelegramApp(config: TelegramConfig) {
         await sendChunkedMessage(content, `_User (terminal):_`, { disable_notification: true });
       } else {
         await sendChunkedMessage(content, `_Claude Code:_`);
+
+        // Extract and upload any images mentioned in the response
+        const session = sessionManager.getSession(sessionId);
+        const images = extractImagePaths(content, session?.cwd);
+        for (const image of images) {
+          try {
+            console.log(`[Telegram] Uploading image: ${image.resolvedPath}`);
+            const isGif = image.resolvedPath.toLowerCase().endsWith('.gif');
+            messageQueue.push(async () => {
+              if (isGif) {
+                await bot.api.sendAnimation(config.chatId, new InputFile(image.resolvedPath), {
+                  caption: `📎 ${image.originalPath}`,
+                });
+              } else {
+                await bot.api.sendPhoto(config.chatId, new InputFile(image.resolvedPath), {
+                  caption: `📎 ${image.originalPath}`,
+                });
+              }
+            });
+            processQueue();
+          } catch (err) {
+            console.error('[Telegram] Failed to upload image:', err);
+          }
+        }
       }
     },
 

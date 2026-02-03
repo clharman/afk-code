@@ -59,6 +59,7 @@ Step 3: Invite the Bot
    • Send Messages
    • Manage Channels
    • Read Message History
+   • Attach Files
 4. Copy the URL and open it to invite the bot to your server
 `);
 

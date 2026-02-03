@@ -13,6 +13,7 @@ Telegram and Discord are recommended.
 | Siri integration | Receive & Send | Receive only | Receive only |
 | Multi-session support | One at a time (switchable) | Yes | Yes |
 | Permissions required | Personal | Personal | Admin |
+| Image support | Yes | Yes | Yes |
 
 ## Quick Start (Telegram)
 
@@ -41,7 +42,7 @@ npx afk-code claude
 #    - Go to Bot → Reset Token → copy it
 #    - Enable "Message Content Intent"
 #    - Go to OAuth2 → URL Generator → select "bot" scope
-#    - Select permissions: Send Messages, Manage Channels, Read Message History
+#    - Select permissions: Send Messages, Manage Channels, Read Message History, Attach Files
 #    - Open the generated URL to invite the bot
 
 # 2. Get your User ID (enable Developer Mode, right-click your name → Copy User ID)
@@ -74,6 +75,10 @@ npx afk-code claude
 ```
 
 A new channel is created for each session. Messages relay bidirectionally.
+
+## Image Support
+
+When Claude references image paths in responses (e.g., `/path/to/screenshot.png`), the bot automatically detects and uploads them to the chat. Supports PNG, JPG, GIF, WebP, and other common formats.
 
 ## Commands
 
@@ -128,7 +133,8 @@ Requires Node.js 18+.
 ## Limitations
 
 - Does not support plan mode or responding to Claude Code's form-based questions (AskUserQuestion)
-- Does not send tool calls or results
+  - You can bypass this using the `/mode` command or by sending any message
+- Does not send tool calls or results (would encounter rate limits)
 
 ## Disclaimer
 

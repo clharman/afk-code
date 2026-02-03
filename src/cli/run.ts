@@ -72,6 +72,23 @@ export async function run(command: string[]): Promise<void> {
   const cwd = process.cwd();
   const projectDir = getClaudeProjectDir(cwd);
 
+  // Show loading spinner while starting
+  const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  let spinnerIndex = 0;
+  let spinnerInterval: ReturnType<typeof setInterval> | null = setInterval(() => {
+    process.stdout.write(`\r${spinnerFrames[spinnerIndex]} Starting...`);
+    spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
+  }, 80);
+
+  const stopSpinner = () => {
+    if (spinnerInterval) {
+      clearInterval(spinnerInterval);
+      spinnerInterval = null;
+      // Clear the spinner line
+      process.stdout.write('\r\x1b[K');
+    }
+  };
+
   // Use node-pty for full terminal features + remote input
   const cols = process.stdout.columns || 80;
   const rows = process.stdout.rows || 24;
@@ -99,6 +116,7 @@ export async function run(command: string[]): Promise<void> {
   }
 
   ptyProcess.onData((data: string) => {
+    stopSpinner();
     process.stdout.write(data);
   });
 

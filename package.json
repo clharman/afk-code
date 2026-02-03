@@ -1,6 +1,6 @@
 {
   "name": "afk-code",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Monitor and interact with Claude Code sessions from Slack/Discord/Telegram",
   "author": "Colin Harman",
   "repository": {
