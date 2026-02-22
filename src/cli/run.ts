@@ -7,8 +7,8 @@ const DAEMON_SOCKET = '/tmp/afk-code-daemon.sock';
 
 // Get Claude's project directory for the current working directory
 function getClaudeProjectDir(cwd: string): string {
-  // Claude encodes paths by replacing / with -
-  const encodedPath = cwd.replace(/\//g, '-');
+  // Claude encodes paths by replacing / and . with -
+  const encodedPath = cwd.replace(/[/.]/g, '-');
   return `${homedir()}/.claude/projects/${encodedPath}`;
 }
 
